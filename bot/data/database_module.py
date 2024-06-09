@@ -1,14 +1,19 @@
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, select
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import MetaData, Table, Column, Integer, String
 from dotenv import load_dotenv
 from os import getenv
+import asyncio
 
 load_dotenv()
 
-engine = create_engine(getenv("SQLALCHEMY_ENGINE"), echo=True)
-conn = engine.connect()
+# Создаем асинхронный движок
+engine = create_async_engine(getenv("SQLALCHEMY_ENGINE"), echo=True)
+
 meta = MetaData()
 
-users = Table(
+# Определение таблицы
+Users = Table(
     "users",
     meta,
     Column('id', Integer, primary_key=True),
@@ -17,11 +22,21 @@ users = Table(
     Column("longitude", String),
 )
 
+# Асинхронный сессионный объект
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-async def inset_users(telegram_id, latitude, longitude):
-    conn.execute(users.insert().values(telegram_id=telegram_id, latitude=latitude, longitude=longitude))
-    conn.commit()
+# Асинхронная функция для работы с базой данных
+async def async_main():
+    # Создание всех таблиц, если они не существуют
+    async with engine.begin() as conn:
+        await conn.run_sync(meta.create_all)
 
+    # Работа с сессией
+    async with async_session() as session:
+        async with session.begin():
+            # Здесь могут быть запросы к базе данных, например, добавление пользователя
+            # Например, session.add(...)
+            pass
 
 if __name__ == '__main__':
-    meta.create_all(engine)
+    asyncio.run(async_main())
